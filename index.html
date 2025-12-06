@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>金刚石结构3D展示</title>
+    <script src="three.min.js"></script>
+    <script src="OrbitControls.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(#1d1d1d);
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 10px 0;
+            margin-bottom: 10px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+        
+        .content {
+            display: flex;
+            flex: 1;
+            gap: 15px;
+            min-height: 0;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            background-color: #0a1931;
+            position: relative;
+        }
+        
+        #diamond-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .controls {
+            width: 400px;
+            background: rgba(30, 40, 80, 0.85);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            overflow-y: auto;
+        }
+        
+        .control-section {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .control-section h3 {
+            margin-bottom: 12px;
+            color: #4dabf7;
+            font-size: 1.2rem;
+        }
+        
+        .ring-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .ring-btn {
+            background: #1e3a8a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        
+        .ring-btn:hover {
+            background: #3b82f6;
+        }
+        
+        .ring-btn.active {
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+        }
+        
+        .action-btn {
+            background: linear-gradient(to right, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 12px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 0.95rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            background: linear-gradient(to right, #1d4ed8, #1e40af);
+            transform: translateY(-1px);
+        }
+        
+        .action-btn.show-unit-cell {
+            background: linear-gradient(to right, #10b981, #059669);
+        }
+        
+        .action-btn.show-unit-cell:hover {
+            background: linear-gradient(to right, #059669, #047857);
+        }
+        
+        .unit-cell-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .unit-cell-tab {
+            flex: 1;
+            background: #1e3a8a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+        
+        .unit-cell-tab:hover {
+            background: #3b82f6;
+        }
+        
+        .unit-cell-tab.active {
+            background: #10b981;
+            box-shadow: 0 0 5px rgba(16, 185, 129, 0.5);
+        }
+        
+        .atom-info {
+            background: rgba(30, 41, 59, 0.7);
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 8px;
+            line-height: 1.4;
+            font-size: 0.9rem;
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 10px;
+            font-size: 0.85rem;
+        }
+        
+        .color-box {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            margin-right: 6px;
+        }
+        
+        .carbon-color { background-color: #3b82f6; }
+        .bond-color { background-color: #94a3b8; }
+        .unit-cell-color { background-color: #10b981; }
+        
+        footer {
+            text-align: center;
+            padding: 15px;
+            font-size: 0.85rem;
+            opacity: 0.7;
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 1100px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .controls {
+                width: 100%;
+                max-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>金刚石结构3D模型</h1>
+            <p>展示一个碳原子周围的12个六元环及晶胞的选取</p>
+        </header>
+        
+        <div class="content">
+            <div class="canvas-container">
+                <div id="diamond-canvas"></div>
+            </div>
+            
+            <div class="controls">
+                <div class="control-section">
+                    <h3>六元环选择 (围绕56号碳原子)</h3>
+                    <div class="ring-buttons" id="ring-buttons">
+                        <!-- 按钮将通过JS动态生成 -->
+                    </div>
+                    <button id="show-all-rings" class="action-btn">显示全部六元环</button>
+                    <button id="hide-all-rings" class="action-btn">隐藏全部六元环</button>
+                    <button id="toggle-center-atom" class="action-btn">标记中心碳原子</button>
+                </div>
+                
+                <div class="control-section">
+                    <h3>晶胞操作</h3>
+                    <button id="show-unit-cell" class="action-btn show-unit-cell">显示/隐藏晶胞</button>
+                    <div class="unit-cell-tabs">
+                        <button class="unit-cell-tab" data-type="vertices">顶点原子</button>
+                        <button class="unit-cell-tab" data-type="face">面心原子</button>
+                        <button class="unit-cell-tab" data-type="inner">内部原子</button>
+                    </div>
+                    
+                </div>
+                
+                <div class="legend">
+                    <div class="legend-item"><div class="color-box carbon-color"></div><span>碳原子</span></div>
+                    <div class="legend-item"><div class="color-box bond-color"></div><span>碳碳键</span></div>
+                    <div class="legend-item"><div class="color-box unit-cell-color"></div><span>晶胞框</span></div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>金刚石中的六元环及晶胞结构 | 温州中学刘晋阳</p>
+        </footer>
+    </div>
+
+    <script>
+        // 全局变量
+        let scene, camera, renderer, controls;
+        let rings = []; // 存储六元环对象
+        let unitCell = null;
+        let unitCellVisible = false;
+        let allAtoms = {}; // 存储所有原子对象
+        let allBonds = []; // 存储所有化学键对象
+        let highlightedAtoms = new Map(); // 当前高亮的原子：atomId -> color
+        let highlightedBonds = new Map(); // 当前高亮的化学键：bondId -> color
+        let unitCellActiveTabs = new Set(['vertices', 'face', 'inner']); // 激活的晶胞选项卡
+        let showCenterAtomLabel = false; // 控制中心原子标签显示
+        
+        // 六种高亮颜色
+        const ringColors = [
+            0xff0000, // 红色 - 环1,2
+            0xff8800, // 橙色 - 环3,4
+            0xffff00, // 黄色 - 环5,6
+            0x00ff00, // 绿色 - 环7,8
+            0x00ffff, // 青色 - 环9,10
+            0xff00ff  // 紫色 - 环11,12
+        ];
+        
+        // 环分组颜色映射（环1和环2都为红色）
+        const ringGroups = [
+            [1, 2],   // 组1：环1和环2（红色）
+            [3, 4],   // 组2：环3和环4（橙色）
+            [5, 6],   // 组3：环5和环6（黄色）
+            [7, 8],   // 组4：环7和环8（绿色）
+            [9, 10],  // 组5：环9和环10（青色）
+            [11, 12]  // 组6：环11和环12（紫色）
+        ];
+        
+        const ringColorMap = new Map();
+        
+        // 金刚石晶格常数
+        const a = 3.567;
+        
+        // 原子坐标数据
+        const basis = [
+            [0, 0, 0],
+            [0.5, 0.5, 0],
+            [0.5, 0, 0.5],
+            [0, 0.5, 0.5],
+            [0.25, 0.25, 0.25],
+            [0.75, 0.75, 0.25],
+            [0.75, 0.25, 0.75],
+            [0.25, 0.75, 0.75]
+        ];
+        
+        // 生成完整的64个原子坐标
+        function generateAllAtomPositions() {
+            const positions = {};
+            let atomIndex = 0;
+            
+            for (let x = 0; x < 2; x++) {
+                for (let y = 0; y < 2; y++) {
+                    for (let z = 0; z < 2; z++) {
+                        basis.forEach((pos, idx) => {
+                            const px = (pos[0] + x) * a - a;
+                            const py = (pos[1] + y) * a - a;
+                            const pz = (pos[2] + z) * a - a;
+                            
+                            positions[atomIndex] = new THREE.Vector3(px, py, pz);
+                            atomIndex++;
+                        });
+                    }
+                }
+            }
+            
+            return positions;
+        }
+        
+        // 需要显示的原子编号
+        const atomIdsToShow = [56,60,29,30,59,47,58,45,54,57,55,13,43,44,41,39,50,52,51,22,25,28,26,5,18,7,9,6,35,12,36,20,1,2,4,3];
+        
+        // 新增原子
+        const additionalAtoms = [8, 16, 17, 19, 21, 23, 24, 27, 31, 32, 33, 34, 37, 38, 40, 42, 46, 48, 49, 53, 61, 62, 63];
+        
+        // 所有要显示的原子
+        const allAtomIdsToShow = [...atomIdsToShow, ...additionalAtoms].filter(id => id !== 10 && id !== 14);
+        
+        // 六元环定义
+        const hexagonRings = [
+            [56, 60, 59, 30, 26, 13],
+            [43, 47, 58, 56, 60, 13],
+            [60, 56, 39, 50, 54, 57],
+            [60, 56, 39, 41, 45, 58],
+            [60, 56, 22, 25, 29, 59],
+            [60, 56, 22, 51, 55, 57],
+            [13, 56, 39, 41, 44, 43],
+            [13, 56, 39, 9, 6, 35],
+            [22, 56, 39, 18, 5, 35],
+            [22, 56, 39, 50, 51, 52],
+            [13, 56, 22, 9, 7, 18],
+            [13, 56, 22, 25, 26, 28]
+        ];
+        
+        // 分配环颜色
+        function assignRingColors() {
+            const ringGroups = [
+                [1, 2],   // 组1：环1和环2（红色）
+                [3, 4],   // 组2：环3和环4（橙色）
+                [5, 6],   // 组3：环5和环6（黄色）
+                [7, 8],   // 组4：环7和环8（绿色）
+                [9, 10],  // 组5：环9和环10（青色）
+                [11, 12]  // 组6：环11和环12（紫色）
+    ];
+            for (let groupIndex = 0; groupIndex < ringGroups.length; groupIndex++) {
+                const group = ringGroups[groupIndex];
+                const colorIndex = groupIndex % ringColors.length;
+                
+                group.forEach(ringId => {
+                    ringColorMap.set(ringId - 1, colorIndex);
+                });
+            }
+        }
+        
+        // 晶胞原子定义
+        const unitCellVertices = [60, 52, 28, 44, 12, 36, 20, 4];
+        const unitCellFaceAtoms = [5, 7, 13, 39, 6, 22];
+        const unitCellInnerAtoms = [9, 18, 35, 56];
+        
+        // 初始化场景
+        function init() {
+            // 分配环颜色
+            assignRingColors();
+            
+            // 创建场景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+            
+            // 创建相机
+            const canvasContainer = document.getElementById('diamond-canvas');
+            camera = new THREE.PerspectiveCamera(60, canvasContainer.clientWidth / canvasContainer.clientHeight, 0.1, 1000);
+            camera.position.set(15, 12, 15);
+            
+            // 创建渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+            canvasContainer.appendChild(renderer.domElement);
+            
+            // 添加轨道控制器
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            
+            // 在这里添加旋转限制解除代码：
+            controls.minDistance = 1;
+            controls.maxDistance = 500;
+            controls.maxPolarAngle = Math.PI;
+            controls.minPolarAngle = 0;
+            controls.minAzimuthAngle = -Infinity;
+            controls.maxAzimuthAngle = Infinity;
+            
+            // 添加光源
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 20, 15);
+            scene.add(directionalLight);
+            
+            // 生成所有原子坐标
+            const allPositions = generateAllAtomPositions();
+            
+            // 创建金刚石结构
+            createDiamondStructure(allPositions);
+            
+            // 创建六元环
+            createHexagonalRings(allPositions);
+            
+            // 生成六元环按钮
+            createRingButtons();
+            
+            // 添加事件监听器
+            document.getElementById('show-all-rings').addEventListener('click', showAllRings);
+            document.getElementById('hide-all-rings').addEventListener('click', hideAllRings);
+            document.getElementById('show-unit-cell').addEventListener('click', toggleUnitCell);
+            document.getElementById('toggle-center-atom').addEventListener('click', toggleCenterAtomLabel);
+            
+            // 添加晶胞选项卡事件监听器（多选）
+            document.querySelectorAll('.unit-cell-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const type = this.dataset.type;
+                    
+                    // 切换选中状态
+                    if (this.classList.contains('active')) {
+                        this.classList.remove('active');
+                        unitCellActiveTabs.delete(type);
+                    } else {
+                        this.classList.add('active');
+                        unitCellActiveTabs.add(type);
+                    }
+                    
+                    // 更新高亮
+                    updateUnitCellHighlight();
+                });
+            });
+            
+            // 处理窗口大小变化
+            window.addEventListener('resize', onWindowResize);
+            
+            // 开始动画循环
+            animate();
+        }
+        
+        // 创建金刚石结构
+        function createDiamondStructure(allPositions) {
+            // 创建需要显示的所有原子
+            allAtomIdsToShow.forEach(id => {
+                if (allPositions[id]) {
+                    createAtom(id, allPositions[id]);
+                }
+            });
+            
+            // 创建化学键
+            createBonds();
+        }
+        
+        // 创建单个原子
+        function createAtom(id, position, color = 0x3b82f6) {
+            const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: color,
+                shininess: 100,
+                transparent: true
+            });
+            const atom = new THREE.Mesh(geometry, material);
+            atom.position.copy(position);
+            
+            // 存储原子对象
+            allAtoms[id] = {
+                mesh: atom,
+                position: position.clone(),
+                labelSprite: null,
+                originalColor: color,
+                originalOpacity: 1.0,
+                isHighlighted: false
+            };
+            
+            scene.add(atom);
+            
+            // 添加原子编号标签（只显示中心原子）
+            const importantAtoms = [56];
+            if (importantAtoms.includes(id)) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 48;
+                canvas.height = 24;
+                
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText("中心", canvas.width/2, canvas.height/2);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMaterial = new THREE.SpriteMaterial({ 
+                    map: texture,
+                    transparent: true
+                });
+                const sprite = new THREE.Sprite(spriteMaterial);
+                sprite.position.copy(position);
+                sprite.position.y += 0.5;
+                sprite.scale.set(0.8, 0.4, 1);
+                
+                // 根据全局变量设置初始可见性
+                sprite.visible = showCenterAtomLabel; // 新增
+
+                scene.add(sprite);
+                allAtoms[id].labelSprite = sprite;
+            }
+            /*以下是原来用于编辑定位的原子位置
+            const importantAtoms = [56, 60, 13, 22, 39, 1, 2, 3, 4, 12, 20, 28, 36, 44, 52];
+            if (importantAtoms.includes(id)) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 48;
+                canvas.height = 24;
+                
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(id.toString(), canvas.width/2, canvas.height/2);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMaterial = new THREE.SpriteMaterial({ 
+                    map: texture,
+                    transparent: true
+                });
+                const sprite = new THREE.Sprite(spriteMaterial);
+                sprite.position.copy(position);
+                sprite.position.y += 0.5;
+                sprite.scale.set(0.8, 0.4, 1);
+                
+                scene.add(sprite);
+                allAtoms[id].labelSprite = sprite;
+            }
+            */
+            
+            return atom;
+        }
+        
+        // 切换中心碳原子标签显示
+        function toggleCenterAtomLabel() {
+            showCenterAtomLabel = !showCenterAtomLabel;
+            
+            // 更新56号原子的标签
+            if (allAtoms[56] && allAtoms[56].labelSprite) {
+                allAtoms[56].labelSprite.visible = showCenterAtomLabel;
+            }
+            
+            // 更新按钮文本
+            const button = document.getElementById('toggle-center-atom');
+            if (button) {
+                button.textContent = showCenterAtomLabel ? 
+                    '隐藏中心碳原子标记' : '标记中心碳原子';
+            }
+            
+            console.log(`中心碳原子标记 ${showCenterAtomLabel ? '显示' : '隐藏'}`);
+        }
+
+        // 创建化学键（较细的键）
+        function createBonds() {
+            const atomIds = Object.keys(allAtoms).map(Number);
+            
+            for (let i = 0; i < atomIds.length; i++) {
+                for (let j = i + 1; j < atomIds.length; j++) {
+                    const atom1 = allAtoms[atomIds[i]];
+                    const atom2 = allAtoms[atomIds[j]];
+                    
+                    const distance = atom1.position.distanceTo(atom2.position);
+                    
+                    if (Math.abs(distance - 1.54) < 0.3) {
+                        createBondBetweenAtoms(atom1, atom2, atomIds[i], atomIds[j]);
+                    }
+                }
+            }
+        }
+        
+        // 在两个原子之间创建化学键（较细的键）
+        function createBondBetweenAtoms(atom1, atom2, id1, id2) {
+            const distance = atom1.position.distanceTo(atom2.position);
+            
+            // 使用圆柱体创建键，直径为原来的一半（0.075）
+            const bondGeometry = new THREE.CylinderGeometry(0.075, 0.075, distance, 8);
+            bondGeometry.rotateZ(Math.PI / 2);
+            
+            const bondMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x94a3b8,
+                shininess: 30,
+                transparent: true
+            });
+            
+            const bond = new THREE.Mesh(bondGeometry, bondMaterial);
+            
+            const center = new THREE.Vector3()
+                .addVectors(atom1.position, atom2.position)
+                .multiplyScalar(0.5);
+            
+            bond.position.copy(center);
+            
+            const direction = new THREE.Vector3()
+                .subVectors(atom2.position, atom1.position)
+                .normalize();
+            
+            bond.quaternion.setFromUnitVectors(
+                new THREE.Vector3(1, 0, 0),
+                direction
+            );
+            
+            scene.add(bond);
+            
+            const bondId = `${Math.min(id1, id2)}-${Math.max(id1, id2)}`;
+            allBonds.push({
+                mesh: bond,
+                atomId1: id1,
+                atomId2: id2,
+                bondId: bondId,
+                originalColor: 0x94a3b8,
+                originalOpacity: 1.0,
+                isHighlighted: false
+            });
+            
+            return bond;
+        }
+        
+        // 创建六元环
+        // 创建六元环
+        function createHexagonalRings(allPositions) {
+            console.log('创建六元环...');
+            
+            rings = [];
+            
+            for (let i = 0; i < hexagonRings.length; i++) {
+                const ringId = i + 1; // 环的编号（1-12）
+                const ringAtomIds = hexagonRings[i];
+                const vertices = [];
+                let hasAllAtoms = true;
+                
+                // 收集六元环的顶点坐标
+                for (let atomId of ringAtomIds) {
+                    if (allPositions[atomId]) {
+                        const pos = allPositions[atomId];
+                        vertices.push(pos.x, pos.y, pos.z);
+                    } else {
+                        console.warn(`六元环 ${ringId} 中的原子 ${atomId} 不存在`);
+                        hasAllAtoms = false;
+                        break;
+                    }
+                }
+                
+                if (!hasAllAtoms) continue;
+                
+                // 闭合六边形（添加第一个顶点）
+                vertices.push(vertices[0], vertices[1], vertices[2]);
+                
+                // 创建环的几何体
+                const ringGeometry = new THREE.BufferGeometry();
+                ringGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+                
+                // 确定环的颜色（环1和环2为红色，其他按分组）
+                let colorIndex;
+                if (ringId === 1 || ringId === 2) {
+                    colorIndex = 0; // 红色
+                } else if (ringId === 3 || ringId === 4) {
+                    colorIndex = 1; // 橙色
+                } else if (ringId === 5 || ringId === 6) {
+                    colorIndex = 2; // 黄色
+                } else if (ringId === 7 || ringId === 8) {
+                    colorIndex = 3; // 绿色
+                } else if (ringId === 9 || ringId === 10) {
+                    colorIndex = 4; // 青色
+                } else if (ringId === 11 || ringId === 12) {
+                    colorIndex = 5; // 紫色
+                } else {
+                    colorIndex = i % ringColors.length; // 备用
+                }
+                
+                const ringColor = ringColors[colorIndex];
+                
+                // 创建环的材质
+                const ringMaterial = new THREE.LineBasicMaterial({
+                    color: ringColor,
+                    linewidth: 4,
+                    visible: false,
+                    transparent: true
+                });
+                
+                // 创建环的线
+                const ringLine = new THREE.Line(ringGeometry, ringMaterial);
+                scene.add(ringLine);
+                
+                // 存储环对象
+                rings.push({
+                    line: ringLine,
+                    id: ringId,
+                    visible: false,
+                    atomIds: ringAtomIds,
+                    color: ringColor,
+                    colorIndex: colorIndex
+                });
+                
+                console.log(`创建六元环 ${ringId}: 原子 ${ringAtomIds.join(',')}, 颜色索引 ${colorIndex}`);
+            }
+        }
+        
+        // 创建六元环按钮
+        function createRingButtons() {
+            const ringButtonsContainer = document.getElementById('ring-buttons');
+            
+            for (let i = 1; i <= 12; i++) {
+                const button = document.createElement('button');
+                button.className = 'ring-btn';
+                button.id = `ring-${i}`;
+                button.textContent = `环${i}`;
+                
+                // 确定环的颜色（与createHexagonalRings一致）
+                let colorIndex;
+                if (i === 1 || i === 2) {
+                    colorIndex = 0; // 红色
+                } else if (i === 3 || i === 4) {
+                    colorIndex = 1; // 橙色
+                } else if (i === 5 || i === 6) {
+                    colorIndex = 2; // 黄色
+                } else if (i === 7 || i === 8) {
+                    colorIndex = 3; // 绿色
+                } else if (i === 9 || i === 10) {
+                    colorIndex = 4; // 青色
+                } else if (i === 11 || i === 12) {
+                    colorIndex = 5; // 紫色
+                } else {
+                    colorIndex = (i-1) % ringColors.length;
+                }
+                
+                const color = ringColors[colorIndex];
+                const hexColor = '#' + color.toString(16).padStart(6, '0');
+                button.style.background = hexColor;
+                
+                // 设置提示信息
+                const ringIndex = i - 1;
+                if (hexagonRings[ringIndex]) {
+                    button.title = `原子: ${hexagonRings[ringIndex].join(', ')}`;
+                }
+                
+                button.addEventListener('click', () => {
+                    toggleRing(i);
+                });
+                
+                ringButtonsContainer.appendChild(button);
+            }
+        }
+
+        
+        // 切换六元环显示状态
+        function toggleRing(ringId) {
+            const ringIndex = ringId - 1;
+            if (rings[ringIndex]) {
+                const ring = rings[ringIndex];
+                
+                if (ring.visible) {
+                    // 隐藏六元环
+                    ring.line.visible = false;
+                    ring.visible = false;
+                    
+                    // 移除环高亮
+                    removeRingHighlight(ring.atomIds, ring.color);
+                    
+                    // 更新按钮状态
+                    const button = document.getElementById(`ring-${ringId}`);
+                    if (button) {
+                        button.classList.remove('active');
+                    }
+                } else {
+                    // 显示六元环
+                    ring.line.visible = true;
+                    ring.visible = true;
+                    
+                    // 高亮环中的原子和键
+                    highlightRingAtomsAndBonds(ring.atomIds, ring.color);
+                    
+                    // 更新按钮状态
+                    const button = document.getElementById(`ring-${ringId}`);
+                    if (button) {
+                        button.classList.add('active');
+                    }
+                }
+                
+                // 降低非高亮原子的透明度
+                updateNonHighlightedOpacity();
+            }
+        }
+        
+        // 高亮六元环中的原子和键
+        function highlightRingAtomsAndBonds(atomIds, color) {
+            // 高亮原子
+            atomIds.forEach(atomId => {
+                if (allAtoms[atomId]) {
+                    const atom = allAtoms[atomId];
+                    atom.mesh.material.color.set(color);
+                    atom.mesh.material.opacity = 1.0;
+                    atom.isHighlighted = true;
+                    highlightedAtoms.set(atomId, color);
+                }
+            });
+            
+            // 高亮键
+            allBonds.forEach(bond => {
+                if (atomIds.includes(bond.atomId1) && atomIds.includes(bond.atomId2)) {
+                    bond.mesh.material.color.set(color);
+                    bond.mesh.material.opacity = 1.0;
+                    bond.isHighlighted = true;
+                    highlightedBonds.set(bond.bondId, color);
+                }
+            });
+        }
+        
+        // 移除环高亮
+        function removeRingHighlight(atomIds, color, currentRingId) {
+            // currentRingId是当前要隐藏的环的ID
+            
+            // 移除原子高亮
+            atomIds.forEach(atomId => {
+                if (allAtoms[atomId]) {
+                    const atom = allAtoms[atomId];
+                    
+                    // 检查这个原子是否还在其他可见环中
+                    let foundInOtherRing = false;
+                    let otherRingColor = null;
+                    
+                    // 遍历所有环
+                    for (const ring of rings) {
+                        // 如果是可见的环，且不是当前要隐藏的环
+                        if (ring.visible && ring.id !== currentRingId) {
+                            // 检查原子是否在这个环中
+                            if (ring.atomIds.includes(atomId)) {
+                                foundInOtherRing = true;
+                                otherRingColor = ring.color;
+                                break; // 找到第一个包含该原子的其他环就停止
+                            }
+                        }
+                    }
+                    
+                    if (foundInOtherRing) {
+                        // 原子还在其他可见环中，使用那个环的颜色
+                        atom.mesh.material.color.set(otherRingColor);
+                        highlightedAtoms.set(atomId, otherRingColor);
+                    } else {
+                        // 原子不在任何其他可见环中，恢复原始颜色
+                        atom.mesh.material.color.set(atom.originalColor);
+                        atom.isHighlighted = false;
+                        highlightedAtoms.delete(atomId);
+                    }
+                    atom.mesh.material.opacity = 1.0;
+                }
+            });
+            
+            // 移除键高亮
+            allBonds.forEach(bond => {
+                if (atomIds.includes(bond.atomId1) && atomIds.includes(bond.atomId2)) {
+                    const bondId = bond.bondId;
+                    
+                    // 检查这个键是否还在其他可见环中
+                    let foundInOtherRing = false;
+                    let otherRingColor = null;
+                    
+                    for (const ring of rings) {
+                        if (ring.visible && ring.id !== currentRingId) {
+                            // 检查两个原子是否都在这个环中
+                            if (ring.atomIds.includes(bond.atomId1) && ring.atomIds.includes(bond.atomId2)) {
+                                foundInOtherRing = true;
+                                otherRingColor = ring.color;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (foundInOtherRing) {
+                        // 键还在其他可见环中
+                        bond.mesh.material.color.set(otherRingColor);
+                        highlightedBonds.set(bondId, otherRingColor);
+                    } else {
+                        // 键不在任何其他可见环中
+                        bond.mesh.material.color.set(bond.originalColor);
+                        bond.isHighlighted = false;
+                        highlightedBonds.delete(bondId);
+                    }
+                    bond.mesh.material.opacity = 1.0;
+                }
+            });
+        }
+        
+        // 更新非高亮原子的透明度
+        function updateNonHighlightedOpacity() {
+            const hasHighlightedRings = highlightedAtoms.size > 0;
+            
+            Object.keys(allAtoms).forEach(atomId => {
+                const id = parseInt(atomId);
+                const atom = allAtoms[atomId];
+                
+                if (!highlightedAtoms.has(id)) {
+                    if (hasHighlightedRings) {
+                        atom.mesh.material.opacity = 0.3;
+                        if (atom.labelSprite) {
+                            atom.labelSprite.material.opacity = 0.3;
+                        }
+                    } else {
+                        atom.mesh.material.opacity = 1.0;
+                        if (atom.labelSprite) {
+                            atom.labelSprite.material.opacity = 1.0;
+                        }
+                    }
+                } else {
+                    atom.mesh.material.opacity = 1.0;
+                    if (atom.labelSprite) {
+                        atom.labelSprite.material.opacity = 1.0;
+                    }
+                }
+            });
+            
+            allBonds.forEach(bond => {
+                if (!highlightedBonds.has(bond.bondId)) {
+                    if (hasHighlightedRings) {
+                        bond.mesh.material.opacity = 0.3;
+                    } else {
+                        bond.mesh.material.opacity = 1.0;
+                    }
+                } else {
+                    bond.mesh.material.opacity = 1.0;
+                }
+            });
+        }
+        
+        // 显示所有六元环
+        function showAllRings() {
+            rings.forEach((ring, index) => {
+                if (!ring.visible) {
+                    ring.line.visible = true;
+                    ring.visible = true;
+                    
+                    highlightRingAtomsAndBonds(ring.atomIds, ring.color);
+                    
+                    const button = document.getElementById(`ring-${index + 1}`);
+                    if (button) button.classList.add('active');
+                }
+            });
+            
+            updateNonHighlightedOpacity();
+        }
+        
+        // 隐藏所有六元环
+        function hideAllRings() {
+            highlightedAtoms.clear();
+            highlightedBonds.clear();
+            
+            Object.values(allAtoms).forEach(atom => {
+                atom.mesh.material.color.set(atom.originalColor);
+                atom.mesh.material.opacity = 1.0;
+                atom.isHighlighted = false;
+                
+                if (atom.labelSprite) {
+                    atom.labelSprite.material.opacity = 1.0;
+                }
+            });
+            
+            allBonds.forEach(bond => {
+                bond.mesh.material.color.set(bond.originalColor);
+                bond.mesh.material.opacity = 1.0;
+                bond.isHighlighted = false;
+            });
+            
+            rings.forEach((ring, index) => {
+                ring.line.visible = false;
+                ring.visible = false;
+                
+                const button = document.getElementById(`ring-${index + 1}`);
+                if (button) button.classList.remove('active');
+            });
+        }
+        
+        // 切换晶胞显示
+        function toggleUnitCell() {
+            if (unitCellVisible) {
+                // 隐藏晶胞
+                if (unitCell) {
+                    scene.remove(unitCell);
+                    unitCell = null;
+                }
+                
+                // 恢复所有透明度
+                restoreAllOpacity();
+                
+                // 重置选项卡
+                document.querySelectorAll('.unit-cell-tab').forEach(t => {
+                    t.classList.remove('active');
+                });
+                unitCellActiveTabs.clear();
+                
+                unitCellVisible = false;
+            } else {
+                // 显示晶胞
+                const allPositions = generateAllAtomPositions();
+                unitCell = createUnitCell(allPositions);
+                scene.add(unitCell);
+                unitCellVisible = true;
+                
+                // 默认选中所有选项卡
+                unitCellActiveTabs = new Set(['vertices', 'face', 'inner']);
+                document.querySelectorAll('.unit-cell-tab').forEach(t => {
+                    t.classList.add('active');
+                });
+                
+                // 更新晶胞高亮
+                updateUnitCellHighlight();
+            }
+        }
+        
+        // 创建晶胞框（简单的立方体框线）
+        function createUnitCell(allPositions) {
+            const group = new THREE.Group();
+            const material = new THREE.LineBasicMaterial({
+                color: 0x10b981,
+                linewidth: 2
+            });
+            
+            // 获取晶胞顶点坐标
+            const vertices = unitCellVertices.map(id => allPositions[id]).filter(v => v);
+            
+            if (vertices.length === 8) {
+                // 简单的立方体框线，移除指定线条
+                // 顶点顺序: [60, 52, 28, 44, 12, 36, 20, 4]
+                const edges = [
+                    [0, 1], [0, 2], [0, 3],  // 60-52, 60-28, 60-44
+                    [1, 5], [1, 6],                  // 52-36, 52-20
+                    [2, 4], [2, 6],           // 28-12, 28-20
+                    [3, 4], [3, 5],           // 44-12, 44-36
+                    [4, 7],                   // 12-4
+                    [5, 7],           // 36-4
+                    [6, 7]                    // 20-4
+                ];
+                
+                // 移除指定线条：(4,52) -> [1,7], (20,36) -> [5,6], (20,44) -> [3,6], (12,36) -> [4,5]
+                // 这些线条已经不在edges中，所以无需额外处理
+                
+                edges.forEach(edge => {
+                    const v1 = vertices[edge[0]];
+                    const v2 = vertices[edge[1]];
+                    
+                    const points = [v1.clone(), v2.clone()];
+                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                    const line = new THREE.Line(geometry, material);
+                    group.add(line);
+                });
+            }
+            
+            return group;
+        }
+        
+        // 更新晶胞高亮
+        function updateUnitCellHighlight() {
+            if (!unitCellVisible) return;
+            
+            // 确定要高亮的原子集合
+            let atomsToHighlight = [];
+            
+            if (unitCellActiveTabs.has('vertices')) {
+                atomsToHighlight = atomsToHighlight.concat(unitCellVertices);
+            }
+            if (unitCellActiveTabs.has('face')) {
+                atomsToHighlight = atomsToHighlight.concat(unitCellFaceAtoms);
+            }
+            if (unitCellActiveTabs.has('inner')) {
+                atomsToHighlight = atomsToHighlight.concat(unitCellInnerAtoms);
+            }
+            
+            // 重置所有原子和键的透明度（但保持环高亮）
+            Object.keys(allAtoms).forEach(atomId => {
+                const id = parseInt(atomId);
+                const atom = allAtoms[atomId];
+                
+                // 如果是晶胞原子或环高亮原子，保持不透明
+                if (atomsToHighlight.includes(id) || highlightedAtoms.has(id)) {
+                    atom.mesh.material.opacity = 1.0;
+                    if (atom.labelSprite) {
+                        atom.labelSprite.material.opacity = 1.0;
+                    }
+                } else {
+                    // 其他原子半透明
+                    atom.mesh.material.opacity = 0.3;
+                    if (atom.labelSprite) {
+                        atom.labelSprite.material.opacity = 0.3;
+                    }
+                }
+            });
+            
+            // 修改化学键透明度逻辑 - 简化版本
+            allBonds.forEach(bond => {
+                // 检查键是否在环高亮中
+                if (highlightedBonds.has(bond.bondId)) {
+                    bond.mesh.material.opacity = 1.0;
+                } 
+                // 检查键是否在晶胞内部（两个原子都在晶胞原子中）
+                else if (atomsToHighlight.includes(bond.atomId1) && atomsToHighlight.includes(bond.atomId2)) {
+                    // 晶胞内部的键保持不透明
+                    bond.mesh.material.opacity = 1.0;
+                }
+                else {
+                    // 其他键半透明
+                    bond.mesh.material.opacity = 0.2;
+                }
+            });
+        }
+        
+        // 恢复所有透明度
+        function restoreAllOpacity() {
+            Object.keys(allAtoms).forEach(atomId => {
+                const atom = allAtoms[atomId];
+                atom.mesh.material.opacity = 1.0;
+                if (atom.labelSprite) {
+                    atom.labelSprite.material.opacity = 1.0;
+                }
+            });
+            
+            allBonds.forEach(bond => {
+                bond.mesh.material.opacity = 1.0;
+            });
+        }
+        
+        // 窗口大小变化处理
+        function onWindowResize() {
+            const canvasContainer = document.getElementById('diamond-canvas');
+            camera.aspect = canvasContainer.clientWidth / canvasContainer.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+        }
+        
+        // 动画循环
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // 页面加载完成后初始化
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
